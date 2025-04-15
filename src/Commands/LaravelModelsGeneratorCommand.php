@@ -72,18 +72,32 @@ class LaravelModelsGeneratorCommand extends Command
             if ($this->entityToGenerate($name)) {
                 $createBaseClass = config('models-generator.base_files.enabled', false);
                 if ($createBaseClass) {
-                    $baseClassesPath = $path.DIRECTORY_SEPARATOR.'Base';
+                    $baseClassesPath = $path . DIRECTORY_SEPARATOR . 'Base';
                     $this->createBaseClassesFolder($baseClassesPath);
                     $dbEntity->abstract = config('models-generator.base_files.abstract', false);
-                    $dbEntity->namespace = config('models-generator.namespace', 'App\Models').'\\Base';
-                    $fileName = $dbEntity->className.'.php';
-                    $fileSystem->put($baseClassesPath.DIRECTORY_SEPARATOR.$fileName, $this->modelContent($dbEntity->className, $dbEntity));
+                    $dbEntity->namespace = config('models-generator.namespace', 'App\Models') . '\\Base';
+                    $baseFileName = $dbEntity->className . '.php';
+                    $fileSystem->put($baseClassesPath . DIRECTORY_SEPARATOR . $baseFileName, $this->modelContent($dbEntity->className, $dbEntity));
 
                     $dbEntity->cleanForBase();
+                } else {
+                    $fileName = $dbEntity->className . '.php';
+                    $fileSystem->put($path . DIRECTORY_SEPARATOR . $fileName, $this->modelContent($dbEntity->className, $dbEntity));
                 }
 
-                $fileName = $dbEntity->className.'.php';
-                $fileSystem->put($path.DIRECTORY_SEPARATOR.$fileName, $this->modelContent($dbEntity->className, $dbEntity));
+                // Maak custom model file aan die de base file extend (indien nog niet aanwezig)
+                if (basename($path) === 'Generated') {
+                    $customDirectory = dirname($path);
+                } else {
+                    $customDirectory = $path . DIRECTORY_SEPARATOR . 'Custom';
+                    if (! $fileSystem->exists($customDirectory)) {
+                        mkdir($customDirectory, 0755, true);
+                    }
+                }
+                $customFilePath = $customDirectory . DIRECTORY_SEPARATOR . $dbEntity->className . '.php';
+                if (! $fileSystem->exists($customFilePath)) {
+                    $fileSystem->put($customFilePath, $this->getCustomModelContent($dbEntity->className));
+                }
             }
         }
 
@@ -209,5 +223,26 @@ class LaravelModelsGeneratorCommand extends Command
     private function resolveLaravelVersion(): int
     {
         return (int) strstr(app()->version(), '.', true);
+    }
+
+    /**
+     * Genereert de inhoud voor de custom model file.
+     * Deze file bevindt zich in App\Models en extend de gegenereerde model class uit App\Models\Generated.
+     */
+    private function getCustomModelContent(string $className): string
+    {
+        $content  = "<?php\n\ndeclare(strict_types=1);\n\n";
+        $content .= "namespace App\\Models;\n\n";
+        $content .= "use App\\Models\\Generated\\{$className} as Generated{$className};\n\n";
+        $content .= "/**\n";
+        $content .= " * Class {$className}\n";
+        $content .= " * Voeg hier je custom functies toe.\n";
+        $content .= " */\n";
+        $content .= "class {$className} extends Generated{$className}\n";
+        $content .= "{\n";
+        $content .= "    // Voeg hier je custom functies toe\n";
+        $content .= "}\n";
+        dump($content);
+        return $content;
     }
 }

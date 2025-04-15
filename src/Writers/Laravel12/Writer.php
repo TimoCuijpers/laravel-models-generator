@@ -61,6 +61,15 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
                 }
             }
             $body .= $this->spacer.'];';
+            $body .= "\n"."\n".$this->spacer.'/**'."\n";
+            $body .= $this->spacer.' * Get the validation rules for the model.'."\n";
+            $body .= $this->spacer.' *'."\n";
+            $body .= $this->spacer.' * @return array<string>'."\n";
+            $body .= $this->spacer.' */'."\n";
+            $body .= $this->spacer.'public function getRules(): array'."\n";
+            $body .= $this->spacer.'{'."\n";
+            $body .= str_repeat($this->spacer, 2).'return $this->rules;'."\n";
+            $body .= $this->spacer.'}';
 
             return $body;
         }
@@ -108,9 +117,6 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
                     $body .= "\n"."\n".$this->spacer.'public $incrementing = false;'."\n"."\n";
                     $body .= $this->spacer.'protected $keyType = \'string\';';
                 }
-            } else {
-                $body = "\n".$this->spacer.'protected $primaryKey = null;'."\n"."\n";
-                $body .= $this->spacer.'public $incrementing = false;';
             }
         }
 

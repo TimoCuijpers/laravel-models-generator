@@ -70,21 +70,23 @@ class Entity
     public function __construct(public string $name, public string $className)
     {
         /** @var array<string> $parts */
-        $parts = explode('\\', (string) config('models-generator.parent', 'Model'));
+        $parts = explode('\\', (string)config('models-generator.parent', 'Model'));
         $this->parent = $parts ? end($parts) : 'Model';
-        $this->interfaces = (array) config('models-generator.interfaces', []);
-        $this->traits = (array) config('models-generator.traits', []);
-        $this->showTableProperty = (bool) config('models-generator.table', false);
-        $this->className = (string) implode(array_map('ucfirst', explode('.' ,$this->className)));
+        $this->interfaces = (array)config('models-generator.interfaces', []);
+        $this->traits = (array)config('models-generator.traits', []);
+        $this->showTableProperty = (bool)config('models-generator.table', false);
+        $this->className = (string)implode(array_map('ucfirst', explode('.', $this->className)));
     }
 
     public function importLaravelModel(): bool
     {
-        return ! str_contains($this->parent ?? '', 'Base');
+        return !str_contains($this->parent ?? '', 'Base');
     }
 
     public function cleanForBase(): void
     {
+        $this->rules = [];
+        $this->fillable = [];
         $this->hasMany = [];
         $this->belongsTo = [];
         $this->belongsToMany = [];
@@ -94,11 +96,13 @@ class Entity
         $this->properties = [];
         $this->interfaces = [];
         $this->primaryKey = null;
+        $this->softDeletes = false;
+        $this->traits = [];
         $this->showTableProperty = false;
         $this->showTimestampsProperty = false;
-        $this->parent = 'Base'.$this->className;
+        $this->parent = 'Base' . $this->className;
         $this->abstract = false;
-        $this->namespace = (string) config('models-generator.namespace', 'App\Models');
-        $this->imports = [$this->namespace.'\\Base\\'.$this->className.' as Base'.$this->className];
+        $this->namespace = (string)config('models-generator.namespace', 'App\Models');
+        $this->imports = [$this->namespace . '\\Base\\' . $this->className . ' as Base' . $this->className];
     }
 }
