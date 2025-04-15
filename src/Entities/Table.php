@@ -21,6 +21,7 @@ class Table extends Entity
 
     public function addBelongsToMany(BelongsToMany $belongsToMany): self
     {
+        $belongsToMany->pivot = preg_replace('/^.*\./', '', $belongsToMany->pivot);
         $alreadyInserted = false;
         foreach ($this->belongsToMany as $rel) {
             if ($rel->pivot === $belongsToMany->pivot && $rel->related === $belongsToMany->related) {
@@ -67,7 +68,7 @@ class Table extends Entity
             $foreignColumnName = $belongsTo->foreignKey->getForeignColumns()[0];
             $localColumnName = $belongsTo->foreignKey->getLocalColumns()[0];
             if (str_contains($localColumnName, $foreignColumnName) && $localColumnName != $foreignColumnName) {
-                $relationName = Str::camel(str_replace($foreignColumnName, '', $localColumnName));
+                $relationName = Str::camel(Str::replace($foreignColumnName, '', $localColumnName));
             } else {
                 $relationName = Str::camel(Str::singular($belongsTo->foreignKey->getForeignTableName()));
             }

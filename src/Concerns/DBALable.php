@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GiacomoMasseroni\LaravelModelsGenerator\Concerns;
 
+use DB;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
@@ -37,6 +38,7 @@ use GiacomoMasseroni\LaravelModelsGenerator\Entities\Table;
 use GiacomoMasseroni\LaravelModelsGenerator\Enums\ColumnTypeEnum;
 use GiacomoMasseroni\LaravelModelsGenerator\Helpers\NamingHelper;
 use Illuminate\Support\Str;
+use Log;
 
 /**
  * @mixin DriverConnectorInterface
@@ -86,6 +88,12 @@ trait DBALable
 
         $morphables = [];
 
+
+        // Zorgt dat alle array keys bestaan
+         array_map(function($dbTable) use (&$dbTables) {
+            $dbTables[$dbTable->getName()] = $dbTable;
+         }, $tables);
+
         foreach ($tables as $table) {
             $fks = $table->getForeignKeys();
             $columns = $this->getEntityColumns($table->getName());
@@ -105,9 +113,9 @@ trait DBALable
             }
 
             foreach ($indexes as $index) {
-                if(!$index->isPrimary() && $index->isUnique()){
-                    foreach ($index->getColumns() as $columnName){
-                        $rules[$columnName][] = 'unique:'.$dbTable->name;
+                if (!$index->isPrimary() && $index->isUnique()) {
+                    foreach ($index->getColumns() as $columnName) {
+                        $rules[$columnName][] = 'unique:' . $dbTable->name;
                     };
                 }
             }
@@ -172,14 +180,18 @@ trait DBALable
                 ); // $laravelColumnType.($column->getNotnull() ? '' : '|null').' $'.$column->getName();
 
                 // Get morph
-                if (str_ends_with($column->getName(), '_type') && in_array(str_replace('_type', '', $column->getName()) . '_id', array_keys($columns))) {
-                    $dbTable->morphTo[] = new MorphTo(str_replace('_type', '', $column->getName()));
+                if (str_ends_with($column->getName(), '_type') && in_array(Str::replace('_type', '', $column->getName()) . '_id', array_keys($columns))) {
+                    $dbTable->morphTo[] = new MorphTo(Str::replace('_type', '', $column->getName()));
 
-                    $morphables[str_replace('_type', '', $column->getName())] = $dbTable->className;
+                    $morphables[Str::replace('_type', '', $column->getName())] = $dbTable->className;
                 }
             }
             $dbTable->rules = $rules;
             $dbTable->properties = $properties;
+
+            $this->addForeignKeyConstraintIfNeeded($dbTable, $columns, $fks, $dbTables);
+
+            $fks = $table->getForeignKeys();
 
             foreach ($fks as $fk) {
                 if (isRelationshipToBeAdded($dbTable->name, $fk->getForeignTableName())) {
@@ -187,7 +199,7 @@ trait DBALable
                 }
             }
 
-            $dbTables[$table->getName()] = $dbTable;
+            $dbTables[$dbTable->name] = $dbTable;
         }
 
         foreach ($dbTables as $dbTable) {
@@ -356,5 +368,102 @@ trait DBALable
     private function getArrayWithPrimaryKey(Table $dbTable): array
     {
         return $dbTable->primaryKey !== null ? (config('models-generator.primary_key_in_fillable', false) && ! empty($dbTable->primaryKey->name) ? [] : [$dbTable->primaryKey->name]) : [];
+    }
+
+    /**
+     * Voegt een foreign key constraint toe indien nodig.
+     *
+     * @param Table $dbTable
+     * @param Column[] $columns
+     * @param array $fks
+     * @param array $dbTables
+     */
+    private function addForeignKeyConstraintIfNeeded(Table $dbTable, array $columns, array $fks, array $dbTables): void
+    {
+        foreach ($columns as $column) {
+            $columnName = $column->getName();
+            $tableParts = explode('.', $dbTable->name);
+            if (count($tableParts) < 2) {
+                continue;
+            }
+            [$schema, $tableName] = $tableParts;
+
+            // Controleer of er al een foreign key constraint bestaat voor deze kolom.
+            $hasConstraint = false;
+            foreach ($fks as $fk) {
+                if (in_array($columnName, $fk->getLocalColumns())) {
+                    $hasConstraint = true;
+                    break;
+                }
+            }
+            if ($hasConstraint) {
+                continue;
+            }
+
+            // Bepaal de referentietabel aan de hand van de kolomnaam.
+            [$refTable, $refSchema] = $this->determineReferenceTable($schema, $columnName, $dbTables, $dbTable);
+            if (!$refTable || !$refSchema) {
+                continue;
+            }
+
+            $constraintName = 'fk_' . $tableName . '_' . $columnName;
+            $sql = "ALTER TABLE [{$schema}].[{$tableName}]
+                ADD CONSTRAINT [{$constraintName}]
+                FOREIGN KEY ([{$columnName}])
+                REFERENCES [{$refSchema}].[{$refTable}]([id])";
+
+            try {
+                DB::statement($sql);
+                echo "Constraint toegevoegd: {$tableName}.{$columnName} naar {$refSchema}.{$refTable}.id\n";
+            } catch (\Exception $e) {
+                echo "Fout bij constraint {$constraintName}: " . $e->getMessage() . "\n";
+                Log::error("Fout bij constraint {$constraintName}: " . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Bepaalt de referentietabel gebaseerd op naamgevingsconventies.
+     *
+     * @param string $schema
+     * @param string $columnName
+     * @param array $dbTables
+     * @return array|null Geeft de tabelnaam terug als deze gevonden is, anders null.
+     */
+    private function determineReferenceTable(string $schema, string $columnName, array $dbTables, Table $table): ?array
+    {
+        $searchableTables = [];
+        foreach ($dbTables as $key => $dbTable) {
+            $searchableTables[Str::after($key, '.')] = Str::before($key, '.');
+        }
+
+        if (preg_match('/^(.+?)_(\w+)_id$/', $columnName, $matches)) {
+            $possibleTable = $matches[2];
+            $pluralTable = Str::plural($possibleTable);
+
+            if (isset($searchableTables[$pluralTable])) {
+                $schema = $searchableTables[$pluralTable];
+                return [$pluralTable, $schema];
+            } elseif (isset($searchableTables[$possibleTable])) {
+                $schema = $searchableTables[$possibleTable];
+                return [$possibleTable, $schema];
+            }
+        }
+
+        // Tweede patroon: [tabelnaam]_id
+        if (preg_match('/^(.+?)_id$/', $columnName, $matches)) {
+            $possibleTable = $matches[1];
+            $pluralTable = Str::plural($possibleTable);
+
+            if (isset($searchableTables[$pluralTable])) {
+                $schema = $searchableTables[$pluralTable];
+                return [$pluralTable, $schema];
+            } elseif (isset($searchableTables[$possibleTable])) {
+                $schema = $searchableTables[$possibleTable];
+                return [$possibleTable, $schema];
+            }
+        }
+
+        return null;
     }
 }
