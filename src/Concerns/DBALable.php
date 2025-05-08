@@ -180,10 +180,10 @@ trait DBALable
                 ); // $laravelColumnType.($column->getNotnull() ? '' : '|null').' $'.$column->getName();
 
                 // Get morph
-                if (str_ends_with($column->getName(), '_type') && in_array(Str::replace('_type', '', $column->getName()) . '_id', array_keys($columns))) {
-                    $dbTable->morphTo[] = new MorphTo(Str::replace('_type', '', $column->getName()));
+                if (str_ends_with($column->getName(), '_model_type') && in_array(Str::replace('_model_type', '', $column->getName()) . '_id', array_keys($columns))) {
+                    $dbTable->morphTo[] = new MorphTo(Str::replace('_model_type', '', $column->getName()));
 
-                    $morphables[Str::replace('_type', '', $column->getName())] = $dbTable->className;
+                    $morphables[Str::replace('_model_type', '', $column->getName())] = $dbTable->className;
                 }
             }
             $dbTable->rules = $rules;
@@ -380,46 +380,47 @@ trait DBALable
      */
     private function addForeignKeyConstraintIfNeeded(Table $dbTable, array $columns, array $fks, array $dbTables): void
     {
-        foreach ($columns as $column) {
-            $columnName = $column->getName();
-            $tableParts = explode('.', $dbTable->name);
-            if (count($tableParts) < 2) {
-                continue;
-            }
-            [$schema, $tableName] = $tableParts;
-
-            // Controleer of er al een foreign key constraint bestaat voor deze kolom.
-            $hasConstraint = false;
-            foreach ($fks as $fk) {
-                if (in_array($columnName, $fk->getLocalColumns())) {
-                    $hasConstraint = true;
-                    break;
-                }
-            }
-            if ($hasConstraint) {
-                continue;
-            }
-
-            // Bepaal de referentietabel aan de hand van de kolomnaam.
-            [$refTable, $refSchema] = $this->determineReferenceTable($schema, $columnName, $dbTables, $dbTable);
-            if (!$refTable || !$refSchema) {
-                continue;
-            }
-
-            $constraintName = 'fk_' . $tableName . '_' . $columnName;
-            $sql = "ALTER TABLE [{$schema}].[{$tableName}]
-                ADD CONSTRAINT [{$constraintName}]
-                FOREIGN KEY ([{$columnName}])
-                REFERENCES [{$refSchema}].[{$refTable}]([id])";
-
-            try {
-                DB::statement($sql);
-                echo "Constraint toegevoegd: {$tableName}.{$columnName} naar {$refSchema}.{$refTable}.id\n";
-            } catch (\Exception $e) {
-                echo "Fout bij constraint {$constraintName}: " . $e->getMessage() . "\n";
-                Log::error("Fout bij constraint {$constraintName}: " . $e->getMessage());
-            }
-        }
+        echo "Foreign key contstraints disabled";
+//        foreach ($columns as $column) {
+//            $columnName = $column->getName();
+//            $tableParts = explode('.', $dbTable->name);
+//            if (count($tableParts) < 2) {
+//                continue;
+//            }
+//            [$schema, $tableName] = $tableParts;
+//
+//            // Controleer of er al een foreign key constraint bestaat voor deze kolom.
+//            $hasConstraint = false;
+//            foreach ($fks as $fk) {
+//                if (in_array($columnName, $fk->getLocalColumns())) {
+//                    $hasConstraint = true;
+//                    break;
+//                }
+//            }
+//            if ($hasConstraint) {
+//                continue;
+//            }
+//
+//            // Bepaal de referentietabel aan de hand van de kolomnaam.
+//            [$refTable, $refSchema] = $this->determineReferenceTable($schema, $columnName, $dbTables, $dbTable);
+//            if (!$refTable || !$refSchema) {
+//                continue;
+//            }
+//
+//            $constraintName = 'fk_' . $tableName . '_' . $columnName;
+//            $sql = "ALTER TABLE [{$schema}].[{$tableName}]
+//                ADD CONSTRAINT [{$constraintName}]
+//                FOREIGN KEY ([{$columnName}])
+//                REFERENCES [{$refSchema}].[{$refTable}]([id])";
+//
+//            try {
+//                DB::statement($sql);
+//                echo "Constraint toegevoegd: {$tableName}.{$columnName} naar {$refSchema}.{$refTable}.id\n";
+//            } catch (\Exception $e) {
+//                echo "Fout bij constraint {$constraintName}: " . $e->getMessage() . "\n";
+//                Log::error("Fout bij constraint {$constraintName}: " . $e->getMessage());
+//            }
+//        }
     }
 
     /**

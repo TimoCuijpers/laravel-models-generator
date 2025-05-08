@@ -242,7 +242,7 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
             $content .= $this->spacer.' */'."\n";
             $content .= $this->spacer.'public function '.$hasMany->name.'(): HasMany'."\n";
             $content .= $this->spacer.'{'."\n";
-            $content .= str_repeat($this->spacer, 2).'return $this->hasMany('.$relatedClassName.'::class, \''.$hasMany->foreignKeyName.'\''.(! empty($hasMany->localKeyName) ? ', \''.$hasMany->localKeyName.'\'' : '').');'."\n";
+            $content .= str_repeat($this->spacer, 2).'return $this->hasMany(\App\Models\\'.$relatedClassName.'::class, \''.$hasMany->foreignKeyName.'\''.(! empty($hasMany->localKeyName) ? ', \''.$hasMany->localKeyName.'\'' : '').');'."\n";
             $content .= $this->spacer.'}';
         }
 
@@ -309,7 +309,7 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
             $content .= $this->spacer.' */'."\n";
             $content .= $this->spacer.'public function '.$morphTo->name.'(): MorphTo'."\n";
             $content .= $this->spacer.'{'."\n";
-            $content .= str_repeat($this->spacer, 2).'return $this->morphTo(__FUNCTION__, \''.$morphTo->name.'_type\', \''.$morphTo->name.'_id\');'."\n";
+            $content .= str_repeat($this->spacer, 2).'return $this->morphTo(__FUNCTION__, \''.$morphTo->name.'_model_type\', \''.$morphTo->name.'_id\');'."\n";
             $content .= $this->spacer.'}';
         }
 

@@ -11,7 +11,8 @@ class LaravelModelsGeneratorAliasCommand extends Command
     public $signature = 'models:generate
                         {--s|schema= : The name of the database}
                         {--c|connection= : The name of the connection}
-                        {--t|table= : The name of the table}';
+                        {--t|table= : The name of the table}
+                        {--e|typescript : Generate typescript models}';
 
     protected $description = 'Dit is het kind command';
 
@@ -21,6 +22,7 @@ class LaravelModelsGeneratorAliasCommand extends Command
             '--schema' => $this->option('schema'),
             '--connection' => $this->option('connection'),
             '--table' => $this->option('table'),
+            '--typescript' => $this->option('typescript'),
         ]);
     }
 }

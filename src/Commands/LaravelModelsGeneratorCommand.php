@@ -19,7 +19,8 @@ class LaravelModelsGeneratorCommand extends Command
     public $signature = 'laravel-models-generator:generate
                         {--s|schema= : The name of the database}
                         {--c|connection= : The name of the connection}
-                        {--t|table= : The name of the table}';
+                        {--t|table= : The name of the table}
+                        {--e|typescript : Generate typescript models}';
 
     /**
      * The console command description.
@@ -99,6 +100,11 @@ class LaravelModelsGeneratorCommand extends Command
                     $fileSystem->put($customFilePath, $this->getCustomModelContent($dbEntity->className));
                 }
             }
+        }
+
+        if($this->getTypeScript() && $this->singleEntityToCreate === null) {
+            $this->info('Generating typescript models...');
+            $this->call('typescriptable:eloquent');
         }
 
         $this->info($this->singleEntityToCreate === null ? 'Check out your models' : "Check out your {$this->singleEntityToCreate} model");
@@ -198,6 +204,12 @@ class LaravelModelsGeneratorCommand extends Command
         $table = $this->option('table');
 
         return is_string($table) ? $table : null;
+    }
+
+    private function getTypeScript(): bool
+    {
+        $this->info($this->option('typescript'));
+        return !!$this->option('typescript');
     }
 
     private function entityToGenerate(string $entity): bool
