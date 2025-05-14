@@ -19,6 +19,42 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
         }, array_unique($this->entity->imports)));
     }
 
+    public function rules(): string
+    {
+        if (count($this->entity->rules) > 0 && config('models-generator.rules')) {
+            $this->prevElementWasNotEmpty = true;
+
+            $body = "\n"."\n".$this->spacer.'/**'."\n";
+            $body .= $this->spacer.' * The validation rules that apply to the request.'."\n";
+            $body .= $this->spacer.' *'."\n";
+            $body .= $this->spacer.' * @var list<string>'."\n";
+            $body .= $this->spacer.' */'."\n";
+            $body .= $this->spacer.'public array $rules = ['."\n";
+            foreach ($this->entity->rules as $column => $rules) {
+                if (config('models-generator.rules_format', 'string') === 'array') {
+                    $rules = array_map(function (string $rule) {
+                        return '\''.$rule.'\'';
+                    }, $rules);
+                    $rules = implode(', ', $rules);
+                    $body .= str_repeat($this->spacer, 2).'\''.$column.'\' => ['.$rules.'],'."\n";
+                } else {
+                    $rules = array_map(function (string $rule) {
+                        return str_replace(' ', '', $rule);
+                    }, $rules);
+                    $rules = '\''.implode('|', $rules).'\'';
+                    $body .= str_repeat($this->spacer, 2).'\''.$column.'\' => '.$rules.','."\n";
+                }
+            }
+            $body .= $this->spacer.'];';
+
+            return $body;
+        }
+
+        $this->prevElementWasNotEmpty = false;
+
+        return '';
+    }
+
     public function properties(): string
     {
         if (count($this->entity->properties) > 0) {
@@ -209,7 +245,7 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
             $content .= $this->spacer.' */'."\n";
             $content .= $this->spacer.'public function '.$hasMany->name.'(): HasMany'."\n";
             $content .= $this->spacer.'{'."\n";
-            $content .= str_repeat($this->spacer, 2).'return $this->hasMany('.$relatedClassName.'::class, \''.$hasMany->foreignKeyName.'\''.(! empty($hasMany->localKeyName) ? ', \''.$hasMany->localKeyName.'\'' : '').');'."\n";
+            $content .= str_repeat($this->spacer, 2).'return $this->hasMany(\App\Models\\'.$relatedClassName.'::class, \''.$hasMany->foreignKeyName.'\''.(! empty($hasMany->localKeyName) ? ', \''.$hasMany->localKeyName.'\'' : '').');'."\n";
             $content .= $this->spacer.'}';
         }
 
@@ -274,7 +310,7 @@ class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer imp
             $content .= $this->spacer.' */'."\n";
             $content .= $this->spacer.'public function '.$morphTo->name.'(): MorphTo'."\n";
             $content .= $this->spacer.'{'."\n";
-            $content .= str_repeat($this->spacer, 2).'return $this->morphTo(__FUNCTION__, \''.$morphTo->name.'_type\', \''.$morphTo->name.'_id\');'."\n";
+            $content .= str_repeat($this->spacer, 2).'return $this->morphTo(__FUNCTION__, \''.$morphTo->name.'_model_type\', \''.$morphTo->name.'_id\');'."\n";
             $content .= $this->spacer.'}';
         }
 

@@ -21,6 +21,7 @@ class Table extends Entity
 
     public function addBelongsToMany(BelongsToMany $belongsToMany): self
     {
+        $belongsToMany->pivot = preg_replace('/^.*\./', '', $belongsToMany->pivot);
         $alreadyInserted = false;
         foreach ($this->belongsToMany as $rel) {
             if ($rel->pivot === $belongsToMany->pivot && $rel->related === $belongsToMany->related) {
@@ -40,7 +41,7 @@ class Table extends Entity
                 }
                 $relationName = Str::camel(str_replace("{$this->name}_", '', $belongsToMany->pivot).'_'.Str::plural($related));
             }
-            $foreignClassName = ucfirst(Str::camel(Str::singular($belongsToMany->related)));
+            $foreignClassName = Str::pascal(Str::replace('.', ' ', Str::singular($belongsToMany->related)));
             $belongsToMany->name = NamingHelper::caseRelationName($relationName);
             $belongsToMany->foreignClassName = $foreignClassName;
 
@@ -63,11 +64,11 @@ class Table extends Entity
         }
 
         if ($alreadyInserted === false) {
-            $foreignClassName = implode(array_map('ucfirst', explode('.' , ucfirst(Str::camel(Str::singular($belongsTo->foreignKey->getForeignTableName()))))));
+            $foreignClassName = Str::pascal(Str::replace('.', ' ', Str::singular($belongsTo->foreignKey->getForeignTableName())));
             $foreignColumnName = $belongsTo->foreignKey->getForeignColumns()[0];
             $localColumnName = $belongsTo->foreignKey->getLocalColumns()[0];
             if (str_contains($localColumnName, $foreignColumnName) && $localColumnName != $foreignColumnName) {
-                $relationName = Str::camel(str_replace($foreignColumnName, '', $localColumnName));
+                $relationName = Str::camel(Str::replace($foreignColumnName, '', $localColumnName));
             } else {
                 $relationName = Str::camel(Str::singular($belongsTo->foreignKey->getForeignTableName()));
             }

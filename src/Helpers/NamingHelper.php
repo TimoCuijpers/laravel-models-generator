@@ -13,7 +13,7 @@ class NamingHelper
     {
         return match (config('models-generator.relationships_name_case_type')) {
             RelationshipsNameCaseTypeEnum::SNAKE_CASE => Str::snake($name),
-            default => Str::camel($name),
+            default => Str::camel(preg_replace('/^.*\./', '', $name)),
         };
     }
 }

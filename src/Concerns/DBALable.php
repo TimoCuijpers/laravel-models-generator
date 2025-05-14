@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace GiacomoMasseroni\LaravelModelsGenerator\Concerns;
 
+use DB;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\View;
 use Doctrine\DBAL\Types\BigIntType;
 use Doctrine\DBAL\Types\BooleanType;
 use Doctrine\DBAL\Types\DateImmutableType;
@@ -37,6 +39,7 @@ use GiacomoMasseroni\LaravelModelsGenerator\Entities\Table;
 use GiacomoMasseroni\LaravelModelsGenerator\Enums\ColumnTypeEnum;
 use GiacomoMasseroni\LaravelModelsGenerator\Helpers\NamingHelper;
 use Illuminate\Support\Str;
+use Log;
 
 /**
  * @mixin DriverConnectorInterface
@@ -69,40 +72,100 @@ trait DBALable
      */
     public function listTables(): array
     {
-        return $this->getTables($this->sm->listTables());
+        return $this->getTables($this->sm->listTables(), $this->sm->listViews());
     }
 
     /**
      * @param  list<\Doctrine\DBAL\Schema\Table>  $tables
+     * @param  list<View>  $views
      *
      * @return array<string, Table>
      *
      * @throws Exception
      */
-    private function getTables(array $tables): array
+    private function getTables(array $tables, array $views): array
     {
         /** @var array<string, Table> $dbTables */
         $dbTables = [];
+        $dbViews = [];
 
         $morphables = [];
 
+         array_map(function($dbView) use (&$dbViews) {
+             $sqlView = $dbView->getSql();
+             $seperatedSections = explode("\r\n", $sqlView);
+             $viewDeclarations = array_filter($seperatedSections, function ($section) {
+                 return Str::contains($section, ' as ');
+             });
+             $viewColumns = [];
+             array_map(function ($section) use (&$viewColumns) {
+                 $viewColumns[Str::between($section, "\t ",' as ')] = Str::replace(' ', '', Str::between($section, ' as ', ' '));
+             }, $viewDeclarations);
+             $parentTable = Str::between($sqlView, 'FROM ', ';');
+
+             $schema = explode('.', $parentTable)[0].'.';
+             $dbViews[$parentTable] = [
+                 'as' => $schema.$dbView->getName(),
+                 'columns' => $viewColumns,
+             ];
+         }, $views);
+
+         $tables = array_filter($tables, function ($dbTable) use ($dbViews) {
+             return in_array($dbTable->getName(), array_keys($dbViews));
+         });
+
+        // Zorgt dat alle array keys bestaan
+        array_map(function($dbTable) use (&$dbTables, $dbViews) {
+            $dbTables[$dbViews[$dbTable->getName()]['as']] = $dbTable;
+        }, $tables);
+
         foreach ($tables as $table) {
-            $fks = $table->getForeignKeys();
             $columns = $this->getEntityColumns($table->getName());
+            $newColumns = [];
+            array_map(function($column) use (&$dbTables, $dbViews, &$columns, $table, &$newColumns) {
+                $viewColumnName = $dbViews[$table->getName()]['columns'][$column->getName()] ?? null;
+                $translatedColumn = new Column($viewColumnName, $column->getType());
+                $platformOptions = $column->getPlatformOptions();
+                $values = $column->getValues();
+                $column->setPlatformOptions([]);
+                $column->setValues([]);
+                $filteredColumns = array_filter($column->toArray(), function ($param, $key) {return $key !== 'name' && $key !== 'type' && $key !== 'default_constraint_name';}, ARRAY_FILTER_USE_BOTH);
+                try {
+                    $translatedColumn->setOptions([...$filteredColumns]);
+                    $newColumns[$translatedColumn->getName()] = $translatedColumn;
+                    $newColumns[$translatedColumn->getName()]->setPlatformOptions($platformOptions);
+                    $newColumns[$translatedColumn->getName()]->setValues($values);
+                } catch (\Exception $e) {
+                    echo $e->getMessage();
+                }
+            }, $columns);
+
+            $columns = $newColumns;
+
             $indexes = $this->getEntityIndexes($table->getName());
             $properties = [];
+            $rules = [];
 
-            $dbTable = new Table($table->getName(), dbEntityNameToModelName($table->getName()));
+            $tableName = $dbViews[$table->getName()]['as'];
+            $dbTable = new Table($tableName, dbEntityNameToModelName($tableName));
             if (isset($indexes['primary'])) {
-                // $dbTable->primaryKey = $indexes['primary']->getColumns()[0];
-                $primaryKeyName = $indexes['primary']->getColumns()[0];
+                $primaryKeyName = $dbViews[$table->getName()]['columns'][$indexes['primary']->getColumns()[0]] ?? null;
                 foreach ($columns as $column) {
-                    if ($column->getName() == $indexes['primary']->getColumns()[0]) {
+                    if ($column->getName() == $primaryKeyName) {
                         $dbTable->primaryKey = new PrimaryKey($primaryKeyName, $column->getAutoincrement(), $this->laravelColumnType($this->mapColumnType($column->getType())));
                     }
                     break;
                 }
             }
+
+            foreach ($indexes as $index) {
+                if (!$index->isPrimary() && $index->isUnique()) {
+                    foreach ($index->getColumns() as $columnName) {
+                        $rules[$columnName][] = 'unique:' . $dbTable->name;
+                    };
+                }
+            }
+
             $dbTable->fillable = array_filter(
                 array_diff(
                     array_keys($columns),
@@ -136,96 +199,123 @@ trait DBALable
 
             /** @var Column $column */
             foreach ($columns as $column) {
+                // TODO: Add $rules
+
                 $laravelColumnType = $this->laravelColumnType($this->mapColumnType($column->getType()), $dbTable);
                 $dbTable->casts[$column->getName()] = $this->laravelColumnTypeForCast($this->mapColumnType($column->getType()), $dbTable);
 
+                $fieldType = match ($laravelColumnType) {
+                    'integer', 'float' => 'numeric',
+                    'boolean' => 'boolean',
+                    default => 'string',
+                };
+
+                $rules[$column->getName()][] = $column->getNotnull() ? 'required' : 'nullable';
+                $rules[$column->getName()][] = 'size:' . ($column->getLength() ?? $column->getPrecision());
+                $rules[$column->getName()][] = $fieldType;
+
+                if ($fieldType === 'numeric') {
+                    $rules[$column->getName()][] = 'max_digits:' . $column->getScale();
+                    $rules[$column->getName()][] = 'min_digits:' . ($column->getFixed() ? $column->getScale() : '0');
+                }
+
                 $properties[] = new Property(
-                    '$'.$column->getName(),
-                    ($this->typeColumnPropertyMaps[$laravelColumnType] ?? $laravelColumnType).($column->getNotnull() ? '' : '|null'),
+                    '$' . $column->getName(),
+                    ($this->typeColumnPropertyMaps[$laravelColumnType] ?? $laravelColumnType) . ($column->getNotnull() ? '' : '|null'),
                     comment: $column->getComment()
                 ); // $laravelColumnType.($column->getNotnull() ? '' : '|null').' $'.$column->getName();
 
                 // Get morph
-                if (str_ends_with($column->getName(), '_type') && in_array(str_replace('_type', '', $column->getName()).'_id', array_keys($columns))) {
-                    $dbTable->morphTo[] = new MorphTo(str_replace('_type', '', $column->getName()));
+                if (str_ends_with($column->getName(), '_model_type') && in_array(Str::replace('_model_type', '', $column->getName()) . '_id', array_keys($columns))) {
+                    $dbTable->morphTo[] = new MorphTo(Str::replace('_model_type', '', $column->getName()));
 
-                    $morphables[str_replace('_type', '', $column->getName())] = $dbTable->className;
+                    $morphables[Str::replace('_model_type', '', $column->getName())] = $dbTable->className;
                 }
             }
+            $dbTable->rules = $rules;
             $dbTable->properties = $properties;
 
-            foreach ($fks as $fk) {
-                if (isRelationshipToBeAdded($dbTable->name, $fk->getForeignTableName())) {
-                    $dbTable->addBelongsTo(new BelongsTo($fk));
-                }
-            }
+//            dd($dbTable);
 
-            $dbTables[$table->getName()] = $dbTable;
+//            $this->addForeignKeyConstraintIfNeeded($dbTable, $columns, $fks, $dbTables);
+
+//            $fks = $table->getForeignKeys();
+//
+//            foreach ($fks as $fk) {
+//                if (isRelationshipToBeAdded($dbTable->name, $fk->getForeignTableName())) {
+//                    $dbTable->addBelongsTo(new BelongsTo($fk));
+//                }
+//            }
+
+            $dbTables[$dbTable->name] = $dbTable;
         }
 
-        foreach ($dbTables as $dbTable) {
-            foreach ($dbTable->belongsTo as $foreignName => $belongsTo) {
-                $foreignTableName = $belongsTo->foreignKey->getForeignTableName();
-                $foreignKeyName = $belongsTo->foreignKey->getLocalColumns()[0];
-                $localKeyName = $belongsTo->foreignKey->getForeignColumns()[0];
-                if ($localKeyName == $dbTables[$foreignTableName]->primaryKey) {
-                    $localKeyName = null;
-                }
-                if (isRelationshipToBeAdded($dbTable->name, $foreignTableName)) {
-                    $dbTables[$foreignTableName]->addHasMany(new HasMany($dbTable->className, $foreignKeyName, $localKeyName));
-                }
-
-                if (count($dbTable->belongsTo) > 1) {
-                    foreach ($dbTable->belongsTo as $subForeignName => $subBelongsTo) {
-                        $subForeignTableName = $subBelongsTo->foreignKey->getForeignTableName();
-
-                        if ($foreignTableName != $subForeignTableName) {
-                            if (isRelationshipToBeAdded($dbTable->name, $subForeignTableName)) {
-                                $tableIndexes = $this->getEntityIndexes($dbTables[$foreignTableName]->name);
-                                $relatedTableIndexes = $this->getEntityIndexes($subForeignTableName);
-                                $pivotIndexes = $this->getEntityIndexes($dbTable->name);
-
-                                $foreignPivotKey = $tableIndexes['primary']->getColumns()[0];
-                                $relatedPivotKey = $relatedTableIndexes['primary']->getColumns()[0];
-                                $pivotPrimaryKey = isset($pivotIndexes['primary']) ? $pivotIndexes['primary']->getColumns()[0] : null;
-
-                                $pivotColumns = $this->getEntityColumns($dbTable->name);
-                                $pivotTimestamps = array_key_exists('created_at', $pivotColumns) && array_key_exists('updated_at', $pivotColumns);
-                                $pivotAttributes = array_diff(
-                                    array_keys($pivotColumns),
-                                    array_merge(
-                                        [$foreignPivotKey, $relatedPivotKey, $pivotPrimaryKey],
-                                        $pivotTimestamps ? ['created_at', 'updated_at'] : []
-                                    )
-                                );
-
-                                $belongsToMany = new BelongsToMany(
-                                    $subForeignTableName,
-                                    $dbTable->name,
-                                    $foreignPivotKey,
-                                    $relatedPivotKey,
-                                    pivotAttributes: $pivotAttributes
-                                );
-                                $belongsToMany->timestamps = $pivotTimestamps;
-
-                                $dbTables[$foreignTableName]->addBelongsToMany($belongsToMany);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Morph many
-            foreach (config('models-generator.morphs') as $table => $relationship) {
-                if ($table == $dbTable->name) {
-                    $dbTable->morphMany[] = new MorphMany(
-                        NamingHelper::caseRelationName(Str::plural($morphables[$relationship])),
-                        $morphables[$relationship],
-                        $relationship,
-                    );
-                }
-            }
-        }
+//        foreach ($dbTables as $dbTable) {
+//            foreach ($dbTable->belongsTo as $foreignName => $belongsTo) {
+//                $foreignTableName = $belongsTo->foreignKey->getForeignTableName();
+//                $foreignKeyName = $belongsTo->foreignKey->getLocalColumns()[0];
+//                $localKeyName = $belongsTo->foreignKey->getForeignColumns()[0];
+//
+//                if ($localKeyName == $dbTables[$foreignTableName]->primaryKey) {
+//                    $localKeyName = null;
+//                }
+//                if (isRelationshipToBeAdded($dbTable->name, $foreignTableName)) {
+//                    $dbTables[$foreignTableName]->addHasMany(new HasMany($dbTable->className, $foreignKeyName, $localKeyName));
+//                }
+//
+//                $dbTable->rules[$foreignKeyName][] = 'exists:'.$foreignTableName.','.$localKeyName;
+//
+//                if (count($dbTable->belongsTo) > 1) {
+//                    foreach ($dbTable->belongsTo as $subForeignName => $subBelongsTo) {
+//                        $subForeignTableName = $subBelongsTo->foreignKey->getForeignTableName();
+//
+//                        if ($foreignTableName != $subForeignTableName) {
+//                            if (isRelationshipToBeAdded($dbTable->name, $subForeignTableName)) {
+//                                $tableIndexes = $this->getEntityIndexes($dbTables[$foreignTableName]->name);
+//                                $relatedTableIndexes = $this->getEntityIndexes($subForeignTableName);
+//                                $pivotIndexes = $this->getEntityIndexes($dbTable->name);
+//
+//                                $foreignPivotKey = $tableIndexes['primary']->getColumns()[0];
+//                                $relatedPivotKey = $relatedTableIndexes['primary']->getColumns()[0];
+//                                $pivotPrimaryKey = isset($pivotIndexes['primary']) ? $pivotIndexes['primary']->getColumns()[0] : null;
+//
+//                                $pivotColumns = $this->getEntityColumns($dbTable->name);
+//                                $pivotTimestamps = array_key_exists('created_at', $pivotColumns) && array_key_exists('updated_at', $pivotColumns);
+//                                $pivotAttributes = array_diff(
+//                                    array_keys($pivotColumns),
+//                                    array_merge(
+//                                        [$foreignPivotKey, $relatedPivotKey, $pivotPrimaryKey],
+//                                        $pivotTimestamps ? ['created_at', 'updated_at'] : []
+//                                    )
+//                                );
+//
+//                                $belongsToMany = new BelongsToMany(
+//                                    $subForeignTableName,
+//                                    $dbTable->name,
+//                                    $foreignPivotKey,
+//                                    $relatedPivotKey,
+//                                    pivotAttributes: $pivotAttributes
+//                                );
+//                                $belongsToMany->timestamps = $pivotTimestamps;
+//
+//                                $dbTables[$foreignTableName]->addBelongsToMany($belongsToMany);
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//
+//            // Morph many
+//            foreach (config('models-generator.morphs') as $table => $relationship) {
+//                if ($table == $dbTable->name) {
+//                    $dbTable->morphMany[] = new MorphMany(
+//                        NamingHelper::caseRelationName(Str::plural($morphables[$relationship])),
+//                        $morphables[$relationship],
+//                        $relationship,
+//                    );
+//                }
+//            }
+//        }
 
         return $dbTables;
     }
@@ -239,31 +329,10 @@ trait DBALable
             ColumnTypeEnum::BOOLEAN => 'boolean',
             default => 'string',
         };
-
-        /*if ($type == ColumnTypeEnum::INT) {
-            return 'integer';
-        }
-        if ($type == ColumnTypeEnum::DATETIME) {
-            return 'datetime';
-        }
-        if ($type == ColumnTypeEnum::STRING) {
-            return 'string';
-        }
-        if ($type == ColumnTypeEnum::FLOAT) {
-            return 'float';
-        }
-        if ($type == ColumnTypeEnum::BOOLEAN) {
-            return 'bool';
-        }
-
-        return 'string';*/
     }
 
     public function laravelColumnType(ColumnTypeEnum $type, ?Entity $dbTable = null): string
     {
-        if ($type == ColumnTypeEnum::INT) {
-            return 'int';
-        }
         if ($type == ColumnTypeEnum::DATETIME) {
             if ($dbTable !== null) {
                 $dbTable->imports[] = 'Carbon\Carbon';
@@ -271,17 +340,12 @@ trait DBALable
 
             return 'datetime';
         }
-        if ($type == ColumnTypeEnum::STRING) {
-            return 'string';
-        }
-        if ($type == ColumnTypeEnum::FLOAT) {
-            return 'float';
-        }
-        if ($type == ColumnTypeEnum::BOOLEAN) {
-            return 'bool';
-        }
-
-        return 'string';
+        return match ($type) {
+            ColumnTypeEnum::INT => 'integer',
+            ColumnTypeEnum::FLOAT => 'float',
+            ColumnTypeEnum::BOOLEAN => 'boolean',
+            default => 'string',
+        };
     }
 
     /**
@@ -352,5 +416,103 @@ trait DBALable
     private function getArrayWithPrimaryKey(Table $dbTable): array
     {
         return $dbTable->primaryKey !== null ? (config('models-generator.primary_key_in_fillable', false) && ! empty($dbTable->primaryKey->name) ? [] : [$dbTable->primaryKey->name]) : [];
+    }
+
+    /**
+     * Voegt een foreign key constraint toe indien nodig.
+     *
+     * @param Table $dbTable
+     * @param Column[] $columns
+     * @param array $fks
+     * @param array $dbTables
+     */
+    private function addForeignKeyConstraintIfNeeded(Table $dbTable, array $columns, array $fks, array $dbTables): void
+    {
+//        echo "Foreign key contstraints disabled";
+//        foreach ($columns as $column) {
+//            $columnName = $column->getName();
+//            $tableParts = explode('.', $dbTable->name);
+//            if (count($tableParts) < 2) {
+//                continue;
+//            }
+//            [$schema, $tableName] = $tableParts;
+//
+//            // Controleer of er al een foreign key constraint bestaat voor deze kolom.
+//            $hasConstraint = false;
+//            foreach ($fks as $fk) {
+//                if (in_array($columnName, $fk->getLocalColumns())) {
+//                    $hasConstraint = true;
+//                    break;
+//                }
+//            }
+//            if ($hasConstraint) {
+//                continue;
+//            }
+//
+//            // Bepaal de referentietabel aan de hand van de kolomnaam.
+//            [$refTable, $refSchema] = $this->determineReferenceTable($schema, $columnName, $dbTables, $dbTable);
+//            if (!$refTable || !$refSchema) {
+//                continue;
+//            }
+//
+//            $constraintName = 'fk_' . $tableName . '_' . $columnName;
+//            $sql = "ALTER TABLE [{$schema}].[{$tableName}]
+//                ADD CONSTRAINT [{$constraintName}]
+//                FOREIGN KEY ([{$columnName}])
+//                REFERENCES [{$refSchema}].[{$refTable}]([id])";
+//
+//            try {
+//                DB::statement($sql);
+//                echo "Constraint toegevoegd: {$tableName}.{$columnName} naar {$refSchema}.{$refTable}.id\n";
+//            } catch (\Exception $e) {
+//                echo "Fout bij constraint {$constraintName}: " . $e->getMessage() . "\n";
+//                Log::error("Fout bij constraint {$constraintName}: " . $e->getMessage());
+//            }
+//        }
+    }
+
+    /**
+     * Bepaalt de referentietabel gebaseerd op naamgevingsconventies.
+     *
+     * @param string $schema
+     * @param string $columnName
+     * @param array $dbTables
+     * @return array|null Geeft de tabelnaam terug als deze gevonden is, anders null.
+     */
+    private function determineReferenceTable(string $schema, string $columnName, array $dbTables, Table $table): ?array
+    {
+        $searchableTables = [];
+        foreach ($dbTables as $key => $dbTable) {
+            $searchableTables[Str::after($key, '.')] = Str::before($key, '.');
+        }
+
+        if (preg_match('/^(.+?)_(\w+)_id$/', $columnName, $matches)) {
+            $possibleTable = $matches[2];
+            $pluralTable = Str::plural($possibleTable);
+
+            if (isset($searchableTables[$pluralTable])) {
+                $schema = $searchableTables[$pluralTable];
+                return [$pluralTable, $schema];
+            } elseif (isset($searchableTables[$possibleTable])) {
+                $schema = $searchableTables[$possibleTable];
+                return [$possibleTable, $schema];
+            }
+        }
+
+        // Tweede patroon: [tabelnaam]_id
+        if (preg_match('/^(.+?)_id$/', $columnName, $matches)) {
+            $possibleTable = $matches[1];
+            $pluralTable = Str::plural($possibleTable);
+
+            if (isset($searchableTables[$pluralTable])) {
+                $schema = $searchableTables[$pluralTable];
+                return [$pluralTable, $schema];
+            } elseif (isset($searchableTables[$possibleTable])) {
+                $schema = $searchableTables[$possibleTable];
+                return [$possibleTable, $schema];
+            }
+        }
+
+        return null;
     }
 }
