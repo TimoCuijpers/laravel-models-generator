@@ -47,11 +47,14 @@ class LaravelModelsGeneratorCommand extends Command
         $connector = DriverFacade::instance(
             (string) config('database.connections.'.config('database.default').'.driver'),
             $connection,
-            $schema,
-            $this->singleEntityToCreate
+            $schema
         );
 
         $dbTables = $connector->listTables();
+
+        $dbTables = array_filter($dbTables, function ($table) {
+            return $table->name === $this->singleEntityToCreate;
+        });
 
         $dbViews = config('models-generator.generate_views', false) ? $connector->listViews() : [];
 
@@ -254,7 +257,6 @@ class LaravelModelsGeneratorCommand extends Command
         $content .= "{\n";
         $content .= "    // Voeg hier je custom functies toe\n";
         $content .= "}\n";
-        dump($content);
         return $content;
     }
 }
