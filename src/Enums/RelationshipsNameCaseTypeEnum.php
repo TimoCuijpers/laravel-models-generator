@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Enums;
+namespace TimoCuijpers\LaravelModelsGenerator\Enums;
 
 enum RelationshipsNameCaseTypeEnum: string
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Drivers;
+namespace TimoCuijpers\LaravelModelsGenerator\Drivers;
 
 class DriverConnector
 {

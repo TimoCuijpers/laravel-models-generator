@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Exceptions;
+namespace TimoCuijpers\LaravelModelsGenerator\Exceptions;
 
 use Exception;
 use Throwable;

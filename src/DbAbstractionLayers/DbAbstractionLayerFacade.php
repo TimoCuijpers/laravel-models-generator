@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\DbAbstractionLayers;
+namespace TimoCuijpers\LaravelModelsGenerator\DbAbstractionLayers;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Contracts\DbAbstractionLayerInterface;
-use GiacomoMasseroni\LaravelModelsGenerator\Exceptions\DbAbstractionLayerNotFound;
+use TimoCuijpers\LaravelModelsGenerator\Contracts\DbAbstractionLayerInterface;
+use TimoCuijpers\LaravelModelsGenerator\Exceptions\DbAbstractionLayerNotFound;
 
 class DbAbstractionLayerFacade
 {

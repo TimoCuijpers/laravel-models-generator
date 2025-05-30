@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Entities;
+namespace TimoCuijpers\LaravelModelsGenerator\Entities;
 
 class View extends Entity {}

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships;
+namespace TimoCuijpers\LaravelModelsGenerator\Entities\Relationships;
 
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
-use GiacomoMasseroni\LaravelModelsGenerator\Contracts\RelationshipInterface;
+use TimoCuijpers\LaravelModelsGenerator\Contracts\RelationshipInterface;
 
 class BelongsTo implements RelationshipInterface
 {

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Helpers;
+namespace TimoCuijpers\LaravelModelsGenerator\Helpers;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Enums\RelationshipsNameCaseTypeEnum;
+use TimoCuijpers\LaravelModelsGenerator\Enums\RelationshipsNameCaseTypeEnum;
 use Illuminate\Support\Str;
 
 class NamingHelper

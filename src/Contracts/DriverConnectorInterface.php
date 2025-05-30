@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Contracts;
+namespace TimoCuijpers\LaravelModelsGenerator\Contracts;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Entity;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Table;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\View;
-use GiacomoMasseroni\LaravelModelsGenerator\Enums\ColumnTypeEnum;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Entity;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Table;
+use TimoCuijpers\LaravelModelsGenerator\Entities\View;
+use TimoCuijpers\LaravelModelsGenerator\Enums\ColumnTypeEnum;
 
 interface DriverConnectorInterface
 {

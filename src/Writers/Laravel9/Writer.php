@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Writers\Laravel9;
+namespace TimoCuijpers\LaravelModelsGenerator\Writers\Laravel9;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Property;
-use GiacomoMasseroni\LaravelModelsGenerator\Writers\WriterInterface;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Property;
+use TimoCuijpers\LaravelModelsGenerator\Writers\WriterInterface;
 use Illuminate\Support\Str;
 
-class Writer extends \GiacomoMasseroni\LaravelModelsGenerator\Writers\Writer implements WriterInterface
+class Writer extends \TimoCuijpers\LaravelModelsGenerator\Writers\Writer implements WriterInterface
 {
     public function imports(): string
     {

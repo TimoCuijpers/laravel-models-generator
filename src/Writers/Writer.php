@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Writers;
+namespace TimoCuijpers\LaravelModelsGenerator\Writers;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Entity;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Entity;
 
 abstract class Writer implements WriterInterface
 {

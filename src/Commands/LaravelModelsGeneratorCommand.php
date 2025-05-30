@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Commands;
+namespace TimoCuijpers\LaravelModelsGenerator\Commands;
 
 use Doctrine\DBAL\Exception;
-use GiacomoMasseroni\LaravelModelsGenerator\Drivers\DriverFacade;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Entity;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Table;
-use GiacomoMasseroni\LaravelModelsGenerator\Exceptions\DatabaseDriverNotFound;
-use GiacomoMasseroni\LaravelModelsGenerator\Writers\WriterInterface;
+use TimoCuijpers\LaravelModelsGenerator\Drivers\DriverFacade;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Entity;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Table;
+use TimoCuijpers\LaravelModelsGenerator\Exceptions\DatabaseDriverNotFound;
+use TimoCuijpers\LaravelModelsGenerator\Writers\WriterInterface;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Filesystem\Filesystem;
@@ -182,7 +182,7 @@ class LaravelModelsGeneratorCommand extends Command
                 $dbEntity->fixRelationshipsName();
             }
 
-            $versionedWriter = 'GiacomoMasseroni\LaravelModelsGenerator\Writers\Laravel'.$this->resolveLaravelVersion().'\\Writer';
+            $versionedWriter = 'TimoCuijpers\LaravelModelsGenerator\Writers\Laravel'.$this->resolveLaravelVersion().'\\Writer';
             /** @var WriterInterface $writer */
             $writer = new $versionedWriter($className, $dbEntity, $content);
 

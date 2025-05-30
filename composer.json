@@ -1,18 +1,14 @@
 {
-    "name": "giacomomasseron/laravel-models-generator",
+    "name": "timocuijpers/laravel-models-generator",
     "description": "Generate Laravel models from an existing database",
     "keywords": [
-        "Giacomo Masseroni",
-        "laravel",
-        "laravel-models-generator",
-        "eloquent"
     ],
-    "homepage": "https://github.com/giacomomasseron/laravel-models-generator",
+    "homepage": "https://github.com/TimoCuijpers/laravel-models-generator",
     "license": "MIT",
     "authors": [
         {
-            "name": "Giacomo Masseroni",
-            "email": "giacomom@gmail.com",
+            "name": "Timo Cuijpers",
+            "email": "timocuijpers@gmail.com",
             "role": "Developer"
         }
     ],
@@ -41,12 +37,12 @@
             "src/helpers.php"
         ],
         "psr-4": {
-            "GiacomoMasseroni\\LaravelModelsGenerator\\": "src/"
+            "TimoCuijpers\\LaravelModelsGenerator\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "GiacomoMasseroni\\LaravelModelsGenerator\\Tests\\": "tests/",
+            "TimoCuijpers\\LaravelModelsGenerator\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -91,10 +87,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "GiacomoMasseroni\\LaravelModelsGenerator\\LaravelModelsGeneratorServiceProvider"
+                "TimoCuijpers\\LaravelModelsGenerator\\LaravelModelsGeneratorServiceProvider"
             ],
             "aliases": {
-                "LaravelModelsGenerator": "GiacomoMasseroni\\LaravelModelsGenerator\\Facades\\LaravelModelsGenerator"
+                "LaravelModelsGenerator": "TimoCuijpers\\LaravelModelsGenerator\\Facades\\LaravelModelsGenerator"
             }
         }
     },

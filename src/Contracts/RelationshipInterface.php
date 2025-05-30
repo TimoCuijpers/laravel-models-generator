@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Contracts;
+namespace TimoCuijpers\LaravelModelsGenerator\Contracts;
 
 interface RelationshipInterface {}

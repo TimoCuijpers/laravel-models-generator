@@ -18,7 +18,7 @@ use Doctrine\DBAL\Types\SmallIntType;
 use Doctrine\DBAL\Types\StringType;
 use Doctrine\DBAL\Types\TextType;
 use Doctrine\DBAL\Types\Type;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Entity;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Entity;
 use Illuminate\Support\Str;
 
 if (! function_exists('dbEntityNameToModelName')) {

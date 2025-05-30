@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Concerns;
+namespace TimoCuijpers\LaravelModelsGenerator\Concerns;
 
 use DB;
 use Doctrine\DBAL\Connection;
@@ -26,18 +26,18 @@ use Doctrine\DBAL\Types\SmallIntType;
 use Doctrine\DBAL\Types\StringType;
 use Doctrine\DBAL\Types\TextType;
 use Doctrine\DBAL\Types\Type;
-use GiacomoMasseroni\LaravelModelsGenerator\Contracts\DriverConnectorInterface;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Entity;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\PrimaryKey;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Property;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\BelongsTo;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\BelongsToMany;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\HasMany;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\MorphMany;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\MorphTo;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Table;
-use GiacomoMasseroni\LaravelModelsGenerator\Enums\ColumnTypeEnum;
-use GiacomoMasseroni\LaravelModelsGenerator\Helpers\NamingHelper;
+use TimoCuijpers\LaravelModelsGenerator\Contracts\DriverConnectorInterface;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Entity;
+use TimoCuijpers\LaravelModelsGenerator\Entities\PrimaryKey;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Property;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\BelongsTo;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\BelongsToMany;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\HasMany;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\MorphMany;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\MorphTo;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Table;
+use TimoCuijpers\LaravelModelsGenerator\Enums\ColumnTypeEnum;
+use TimoCuijpers\LaravelModelsGenerator\Helpers\NamingHelper;
 use Illuminate\Support\Str;
 use Log;
 

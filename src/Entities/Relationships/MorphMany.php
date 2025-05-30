@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships;
+namespace TimoCuijpers\LaravelModelsGenerator\Entities\Relationships;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Contracts\RelationshipInterface;
+use TimoCuijpers\LaravelModelsGenerator\Contracts\RelationshipInterface;
 
 class MorphMany implements RelationshipInterface
 {

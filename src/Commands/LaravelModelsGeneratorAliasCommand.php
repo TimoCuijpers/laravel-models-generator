@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Commands;
+namespace TimoCuijpers\LaravelModelsGenerator\Commands;
 
 use Illuminate\Console\Command;
 

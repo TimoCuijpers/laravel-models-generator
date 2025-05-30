@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Tests;
+namespace TimoCuijpers\LaravelModelsGenerator\Tests;
 
-use GiacomoMasseroni\LaravelModelsGenerator\LaravelModelsGeneratorServiceProvider;
+use TimoCuijpers\LaravelModelsGenerator\LaravelModelsGeneratorServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -15,7 +15,7 @@ class TestCase extends Orchestra
         parent::setUp();
 
         Factory::guessFactoryNamesUsing(
-            fn (string $modelName) => 'GiacomoMasseroni\\LaravelModelsGenerator\\Database\\Factories\\'.class_basename($modelName).'Factory'
+            fn (string $modelName) => 'TimoCuijpers\\LaravelModelsGenerator\\Database\\Factories\\'.class_basename($modelName).'Factory'
         );
     }
 

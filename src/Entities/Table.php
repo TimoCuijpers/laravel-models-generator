@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace GiacomoMasseroni\LaravelModelsGenerator\Entities;
+namespace TimoCuijpers\LaravelModelsGenerator\Entities;
 
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\BelongsTo;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\BelongsToMany;
-use GiacomoMasseroni\LaravelModelsGenerator\Entities\Relationships\HasMany;
-use GiacomoMasseroni\LaravelModelsGenerator\Helpers\NamingHelper;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\BelongsTo;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\BelongsToMany;
+use TimoCuijpers\LaravelModelsGenerator\Entities\Relationships\HasMany;
+use TimoCuijpers\LaravelModelsGenerator\Helpers\NamingHelper;
 use Illuminate\Support\Str;
 
 class Table extends Entity
